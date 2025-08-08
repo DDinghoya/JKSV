@@ -12,7 +12,7 @@ static SDL_Texture *fldBuffer;
 static unsigned int fldGuideWidth = 0;
 static Mutex fldLock = 0;
 static std::string driveParent;
-static std::vector<drive::gdItem *> driveFldList;
+static std::vector<rfs::RfsItem> driveFldList;
 
 static void fldMenuCallback(void *a)
 {
@@ -88,7 +88,6 @@ static void fldFuncUpload_t(void *a)
     fsSetPriority(FsPriority_Realtime);
 
     data::userTitleInfo *utinfo = data::getCurrentUserTitleInfo();
-    data::titleInfo *tinfo = data::getTitleInfoByTID(utinfo->tid);
     std::string path, tmpZip, filename;//Final path to upload from
 
     if(cfg::config["ovrClk"])
@@ -127,13 +126,13 @@ static void fldFuncUpload_t(void *a)
     upload.f = fopen(path.c_str(), "rb");
     upload.o = &cpyArgs->offset;
 
-    if(fs::gDrive->fileExists(filename))
+    if(fs::rfs->fileExists(filename, driveParent))
     {
-        std::string id = fs::gDrive->getFileID(filename);
-        fs::gDrive->updateFile(id, &upload);
+        std::string id = fs::rfs->getFileID(filename, driveParent);
+        fs::rfs->updateFile(id, &upload);
     }
     else
-        fs::gDrive->uploadFile(filename, driveParent, &upload);
+        fs::rfs->uploadFile(filename, driveParent, &upload);
 
     fclose(upload.f);
 
@@ -153,18 +152,17 @@ static void fldFuncUpload_t(void *a)
 
 static void fldFuncUpload(void *a)
 {
-    if(fs::gDrive)
+    if(fs::rfs)
         ui::newThread(fldFuncUpload_t, a, NULL);
     else
-        ui::showPopMessage(POP_FRAME_DEFAULT, ui::getUICString("popDriveNotActive", 0));
+        ui::showPopMessage(POP_FRAME_DEFAULT, ui::getUICString("popRemoteNotActive", 0));
 }
 
 static void fldFuncDownload_t(void *a)
 {
     threadInfo *t = (threadInfo *)a;
-    drive::gdItem *in = (drive::gdItem *)t->argPtr;
+    rfs::RfsItem *in = (rfs::RfsItem *)t->argPtr;
     data::userTitleInfo *utinfo = data::getCurrentUserTitleInfo();
-    data::titleInfo *tinfo = data::getTitleInfoByTID(utinfo->tid);
     std::string targetPath = util::generatePathByTID(utinfo->tid) + in->name;
     t->status->setStatus(ui::getUICString("threadStatusDownloadingFile", 0), in->name.c_str());
     
@@ -186,8 +184,8 @@ static void fldFuncDownload_t(void *a)
     dlFile.path = targetPath;
     dlFile.size = in->size;
     dlFile.o = &cpy->offset;
-
-    fs::gDrive->downloadFile(in->id, &dlFile);
+    
+    fs::rfs->downloadFile(in->id, &dlFile);
 
     //fclose(dlFile.f);
 
@@ -204,9 +202,8 @@ static void fldFuncDownload_t(void *a)
 
 static void fldFuncDownload(void *a)
 {
-    drive::gdItem *in = (drive::gdItem *)a;
+    rfs::RfsItem *in = (rfs::RfsItem *)a;
     data::userTitleInfo *utinfo = data::getCurrentUserTitleInfo();
-    data::titleInfo *tinfo = data::getTitleInfoByTID(utinfo->tid);
     std::string testPath = util::generatePathByTID(utinfo->tid) + in->name;
     if(fs::fileExists(testPath))
     {
@@ -221,16 +218,16 @@ static void fldFuncDownload(void *a)
 static void fldFuncDriveDelete_t(void *a)
 {
     threadInfo *t = (threadInfo *)a;
-    drive::gdItem *gdi = (drive::gdItem *)t->argPtr;
+    rfs::RfsItem *gdi = (rfs::RfsItem *)t->argPtr;
     t->status->setStatus(ui::getUICString("threadStatusDeletingFile", 0));
-    fs::gDrive->deleteFile(gdi->id);
+    fs::rfs->deleteFile(gdi->id);
     ui::fldRefreshMenu();
     t->finished = true;    
 }
 
 static void fldFuncDriveDelete(void *a)
 {
-    drive::gdItem *in = (drive::gdItem *)a;
+    rfs::RfsItem *in = (rfs::RfsItem *)a;
     ui::confirmArgs *conf = ui::confirmArgsCreate(cfg::config["holdDel"], fldFuncDriveDelete_t, NULL, a, ui::getUICString("confirmDelete", 0), in->name.c_str());
     ui::confirm(conf);
 }
@@ -238,7 +235,7 @@ static void fldFuncDriveDelete(void *a)
 static void fldFuncDriveRestore_t(void *a)
 {
     threadInfo *t = (threadInfo *)a;
-    drive::gdItem *gdi = (drive::gdItem *)t->argPtr;
+    rfs::RfsItem *gdi = (rfs::RfsItem *)t->argPtr;
     t->status->setStatus(ui::getUICString("threadStatusDownloadingFile", 0), gdi->name.c_str());
 
     fs::copyArgs *cpy = fs::copyArgsCreate("", "", "", NULL, NULL, false, false, 0);
@@ -252,7 +249,7 @@ static void fldFuncDriveRestore_t(void *a)
     dlFile.size = gdi->size;
     dlFile.o = &cpy->offset;
 
-    fs::gDrive->downloadFile(gdi->id, &dlFile);
+    fs::rfs->downloadFile(gdi->id, &dlFile);
 
     unzFile tmp = unzOpen64("sdmc:/tmp.zip");
     fs::copyZipToDir(tmp, "sv:/", "sv", t);
@@ -268,7 +265,7 @@ static void fldFuncDriveRestore_t(void *a)
 
 static void fldFuncDriveRestore(void *a)
 {
-    drive::gdItem *in = (drive::gdItem *)a;
+    rfs::RfsItem *in = (rfs::RfsItem *)a;
     ui::confirmArgs *conf = ui::confirmArgsCreate(cfg::config["holdOver"], fldFuncDriveRestore_t, NULL, a, ui::getUICString("confirmRestore", 0), in->name.c_str());
     ui::confirm(conf);
 }
@@ -293,7 +290,6 @@ void ui::fldExit()
     delete ui::fldPanel;
     delete fldMenu;
     delete fldList;
-    SDL_DestroyTexture(fldBuffer);
 }
 
 void ui::fldUpdate()
@@ -319,21 +315,21 @@ void ui::fldPopulateMenu()
     fldMenu->optAddButtonEvent(0, HidNpadButton_A, fs::createNewBackup, NULL);
 
     unsigned fldInd = 1;
-    if(fs::gDrive)
+    if(fs::rfs)
     {
-        if(!fs::gDrive->dirExists(t->title, fs::jksvDriveID))
-            fs::gDrive->createDir(t->title, fs::jksvDriveID);
+        if(!fs::rfs->dirExists(t->safeTitle, fs::rfsRootID))
+            fs::rfs->createDir(t->safeTitle, fs::rfsRootID);
 
-        driveParent = fs::gDrive->getDirID(t->title, fs::jksvDriveID);
+        driveParent = fs::rfs->getDirID(t->safeTitle, fs::rfsRootID);
+        driveFldList = fs::rfs->getListWithParent(driveParent);
 
-        fs::gDrive->getListWithParent(driveParent, driveFldList);
         for(unsigned i = 0; i < driveFldList.size(); i++, fldInd++)
         {
-            fldMenu->addOpt(NULL, "[GD] " + driveFldList[i]->name);
+            fldMenu->addOpt(NULL, "[R] " + driveFldList[i].name);
 
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, driveFldList[i]);
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, driveFldList[i]);
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_Y, fldFuncDriveRestore, driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, &driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, &driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_Y, fldFuncDriveRestore, &driveFldList[i]);
         }
     }
 
@@ -359,7 +355,6 @@ void ui::fldRefreshMenu()
 
     fldMenu->reset();
     data::userTitleInfo *utinfo = data::getCurrentUserTitleInfo();
-    data::titleInfo *tinfo = data::getTitleInfoByTID(utinfo->tid);
     std::string targetDir = util::generatePathByTID(utinfo->tid);
 
     fldList->reassign(targetDir);
@@ -367,17 +362,17 @@ void ui::fldRefreshMenu()
     fldMenu->optAddButtonEvent(0, HidNpadButton_A, fs::createNewBackup, NULL);
 
     unsigned fldInd = 1;
-    if(fs::gDrive)
+    if(fs::rfs)
     {
-        fs::gDrive->getListWithParent(driveParent, driveFldList);
+        driveFldList = fs::rfs->getListWithParent(driveParent);
 
         for(unsigned i = 0; i < driveFldList.size(); i++, fldInd++)
         {
-            fldMenu->addOpt(NULL, "[GD] " + driveFldList[i]->name);
+            fldMenu->addOpt(NULL, "[R] " + driveFldList[i].name);
 
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, driveFldList[i]);
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, driveFldList[i]);
-            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_Y, fldFuncDriveRestore, driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, &driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, &driveFldList[i]);
+            fldMenu->optAddButtonEvent(fldInd, HidNpadButton_Y, fldFuncDriveRestore, &driveFldList[i]);
         }
     }
 

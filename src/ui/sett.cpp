@@ -1,5 +1,5 @@
 #include <switch.h>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include "ui.h"
 #include "file.h"
@@ -228,6 +228,7 @@ static void toggleOpt(void *a)
                 ui::animScale = 1;
             break;
     }
+    cfg::saveConfig();
 }
 
 static void updateMenuText()

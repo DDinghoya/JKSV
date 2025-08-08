@@ -2,3 +2,15 @@ build/
 .vscode/
 *.cbp
 *.layout
+.editorconfig
+
+.idea/
+cmake-build-debug/
+
+# build artifacts
+JKSV.elf
+JKSV.lst
+JKSV.nacp
+JKSV.nro
+JKSV.nso
+JKSV.pfs0

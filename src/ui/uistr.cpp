@@ -150,7 +150,8 @@ void ui::initStrings()
     addUIString("saveTypeMainMenu", 2, "Cache");
     addUIString("saveTypeMainMenu", 3, "System");
     addUIString("saveTypeMainMenu", 4, "System BCAT");
-    addUIString("saveTypeMainMenu", 5, "SysTemp Storagetem");
+    addUIString("saveTypeMainMenu", 5, "Temporary");
+    //This is redundant. Need to merge and use one or the other...
     addUIString("saveDataTypeText", 0, "System");
     addUIString("saveDataTypeText", 1, "Account");
     addUIString("saveDataTypeText", 2, "BCAT");
@@ -202,6 +203,7 @@ void ui::initStrings()
     addUIString("settingsMenu", 18, "Enable Trash Bin: ");
     addUIString("settingsMenu", 19, "Title Sorting Type: ");
     addUIString("settingsMenu", 20, "Animation Scale: ");
+    addUIString("settingsMenu", 21, "Auto-upload to Drive/Webdav: ");
 
     //Main menu
     addUIString("mainMenuSettings", 0, "Settings");
@@ -285,7 +287,9 @@ void ui::initStrings()
     addUIString("popSVIExported", 0, "SVI Exported.");
     addUIString("popDriveStarted", 0, "Google Drive started successfully.");
     addUIString("popDriveFailed", 0, "Failed to start Google Drive.");
-    addUIString("popDriveNotActive", 0, "Google Drive is not available");
+    addUIString("popRemoteNotActive", 0, "Remote is not available");
+    addUIString("popWebdavStarted", 0, "Webdav started successfully.");
+    addUIString("popWebdavFailed", 0, "Failed to start Webdav.");
 
     //Keyboard hints
     addUIString("swkbdEnterName", 0, "Enter a new name");
@@ -313,6 +317,8 @@ void ui::initStrings()
     addUIString("debugStatus", 2, "Current Title: ");
     addUIString("debugStatus", 3, "Safe Title: ");
     addUIString("debugStatus", 4, "Sort Type: ");
+
+    addUIString("appletModeWarning", 0, "*WARNING*: You are running JKSV in applet mode. Certain functions may not work.");
 }
 
 void ui::loadTrans()
@@ -334,6 +340,7 @@ void ui::loadTrans()
     util::replaceButtonsInString(ui::strings[std::make_pair("dialogYes", 0)]);
     util::replaceButtonsInString(ui::strings[std::make_pair("dialogNo", 0)]);
     util::replaceButtonsInString(ui::strings[std::make_pair("dialogOK", 0)]);
+    util::replaceButtonsInString(ui::strings[std::make_pair("appletModeWarning", 0)]);
 }
 
 void ui::saveTranslationFiles(void *a)
